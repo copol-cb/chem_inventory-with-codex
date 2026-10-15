@@ -243,7 +243,8 @@
                                         <td class="{% if current_mode == 'trash' %}bg-trash-mode{% endif %}">{{ item.cas_no }}</td>
                                         <td class="text-primary fw-bold text-start ps-3 {% if current_mode == 'trash' %}bg-trash-mode{% endif %}">{{ item.chemical_name|default:"-" }}</td>
                                         <td class="{% if current_mode == 'trash' %}bg-trash-mode{% endif %}">{{ item.percentage }}</td>
-                                        <td class="text-start {% if current_mode == 'trash' %}bg-trash-mode{% endif %}">
+                                        <td class="regulation-result text-start {% if current_mode == 'trash' %}bg-trash-mode{% endif %}">
+                                            <template class="quantity-detail">{% include "inventory/quantity_detail.html" %}</template>
                                             {% if "__BcSplit__" in item.is_danger_result %}
                                                 <span class="badge">{{ item.is_danger_result }}</span>
                                             {% else %}
@@ -548,9 +549,12 @@
     // [수정됨] 안전 항목 및 규제 항목 뱃지 처리 (오류 수정 및 멀티 규제 지원)
     // ====================================================
     document.addEventListener("DOMContentLoaded", function() {
-        var tds = document.querySelectorAll('tbody td');
+        var tds = document.querySelectorAll('td.regulation-result');
         
         tds.forEach(function(td) {
+            var quantityTemplate = td.querySelector('template.quantity-detail');
+            td.quantityDetail = quantityTemplate ? quantityTemplate.innerHTML : '';
+            if (quantityTemplate) quantityTemplate.remove();
             var htmlContent = td.innerHTML.trim();
             var textContent = td.innerText.trim();
             
@@ -568,7 +572,7 @@
                     // 1. 안전한 경우
                     var safeButton = `
                         <button type="button" class="btn btn-sm btn-success fw-bold rounded-pill shadow-sm py-1 px-2" 
-                                onclick="showReasonModal('${encodedHtml}', 'qty')">
+                                onclick="showReasonModal('${encodedHtml}', 'qty', this)">
                             ✅ 안전 (해당없음)
                         </button>
                     `;
@@ -590,7 +594,7 @@
 
                     var dangerButton = `
                         <button type="button" class="btn btn-sm ${btnClass} fw-bold rounded-pill shadow-sm py-1 px-2" 
-                                onclick="showDangerModal('${encodedHtml}', '${dangerType}')">
+                                onclick="showDangerModal('${encodedHtml}', '${dangerType}', this)">
                             ${finalBtnText}
                         </button>
                     `;
@@ -604,7 +608,7 @@
                 var encodedHtml = encodeURIComponent(htmlContent);
                 var safeButton = `
                     <button type="button" class="btn btn-sm btn-success fw-bold rounded-pill shadow-sm py-1 px-2" 
-                            onclick="showReasonModal('${encodedHtml}', '${reasonType}')">
+                            onclick="showReasonModal('${encodedHtml}', '${reasonType}', this)">
                         ✅ 안전 (해당없음)
                     </button>
                 `;
@@ -614,7 +618,7 @@
     });
 
     // 안전 판정 팝업 띄우기
-    function showReasonModal(encodedHtml, reasonType) {
+    function showReasonModal(encodedHtml, reasonType, button) {
         var decodedHtml = decodeURIComponent(encodedHtml);
         decodedHtml = decodedHtml.replace(/__BcSplit__/g, '<br><hr class="my-2 border-secondary">');
         decodedHtml = decodedHtml.replace(/text-white/g, 'text-dark');
@@ -625,12 +629,12 @@
             (reasonType === 'conc') ? "해당 물질은 유해화학물질 <span class='text-primary'>지정 기준 농도(함량) 미만</span>이므로 규제 이행 대상에서 제외되어 안전으로 판정되었습니다." :
             "해당 물질은 <span>일반화학물질</span>이거나 별도의 규제 대상 정보가 없어 안전으로 판정되었습니다.";
         
-        document.getElementById('reasonModalContent').innerHTML = decodedHtml;
+        document.getElementById('reasonModalContent').innerHTML = decodedHtml + (button ? button.closest('td').quantityDetail || '' : '');
         new bootstrap.Modal(document.getElementById('reasonModal')).show();
     }
 
     // 규제 판정 팝업 띄우기
-    function showDangerModal(encodedHtml, dangerType) {
+    function showDangerModal(encodedHtml, dangerType, button) {
         var decodedHtml = decodeURIComponent(encodedHtml);
         
         // 1. 줄바꿈 및 색상 통일
@@ -661,7 +665,7 @@
             descElem.innerHTML = "해당 물질은 유해화학물질 농도 기준을 초과하며, <span class='text-warning text-dark'>최대 보유량이 최하위 규정수량 이상 ~ 하위 규정수량 미만</span>이므로 <b>영업신고 대상</b>에 해당합니다.";
         }
         
-        document.getElementById('dangerModalContent').innerHTML = decodedHtml;
+        document.getElementById('dangerModalContent').innerHTML = decodedHtml + (button ? button.closest('td').quantityDetail || '' : '');
         new bootstrap.Modal(document.getElementById('dangerModal')).show();
     }
     </script>

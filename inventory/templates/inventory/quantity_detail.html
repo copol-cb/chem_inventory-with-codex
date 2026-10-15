@@ -1,0 +1,42 @@
+<section class="mt-3" aria-label="규정수량 기준">
+    <h6 class="fw-bold">규정수량 기준 및 범위</h6>
+    <p>CAS No. {{ item.cas_no }} · 등록 함량 {{ item.percentage|default_if_none:"미입력" }}%<br>
+        이 성분의 판정에 사용하는 최대보유량: <strong>{{ item.component_total_ton|floatformat:5 }}톤</strong></p>
+    {% for regulation in item.quantity_regulations %}
+        <h6 class="fw-bold mt-3">{{ regulation.regulation_type }}</h6>
+        <p class="mb-2">규제 기준농도: {{ regulation.limit_concentration }}% 이상</p>
+        <div class="table-responsive">
+            <table class="table table-bordered table-sm text-center align-middle">
+                <thead><tr><th scope="col">최하위 규정수량</th><th scope="col">하위 규정수량</th><th scope="col">상위 규정수량</th></tr></thead>
+                <tbody><tr>
+                    <td>{% if regulation.limit_qty_lowest != None %}{{ regulation.limit_qty_lowest }}톤{% else %}미등록{% endif %}</td>
+                    <td>{% if regulation.limit_qty_lower != None %}{{ regulation.limit_qty_lower }}톤{% else %}미등록{% endif %}</td>
+                    <td>{% if regulation.limit_qty_upper != None %}{{ regulation.limit_qty_upper }}톤{% else %}미등록{% endif %}</td>
+                </tr></tbody>
+            </table>
+            {% if '금지' in regulation.regulation_type or '제한' in regulation.regulation_type %}
+                <p>금지·제한물질은 수량과 무관하게 농도 및 상세 규제 조건을 확인합니다.</p>
+            {% elif regulation.limit_qty_lowest != None and regulation.limit_qty_lower != None and regulation.limit_qty_lower > 0 and regulation.limit_qty_lower >= regulation.limit_qty_lowest %}
+                <table class="table table-bordered table-sm align-middle">
+                    <thead><tr><th scope="col">최대보유량 범위(톤)</th><th scope="col">현재 시스템의 수량 판정</th></tr></thead>
+                    <tbody>
+                        <tr><td>{{ regulation.limit_qty_lowest }} 미만</td><td>규정수량 미만</td></tr>
+                        <tr><td>{{ regulation.limit_qty_lowest }} 이상 ~ {{ regulation.limit_qty_lower }} 미만</td><td>영업신고 대상</td></tr>
+                        {% if regulation.limit_qty_upper != None and regulation.limit_qty_upper > regulation.limit_qty_lower %}
+                            <tr><td>{{ regulation.limit_qty_lower }} 이상 ~ {{ regulation.limit_qty_upper }} 미만</td><td>영업허가 대상</td></tr>
+                            <tr><td>{{ regulation.limit_qty_upper }} 이상</td><td>영업허가 대상 · 상위 규정수량 이상</td></tr>
+                        {% else %}
+                            <tr><td>{{ regulation.limit_qty_lower }} 이상</td><td>영업허가 대상</td></tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+                <p class="small">농도 기준에 해당할 때 적용하는 수량 구간입니다. 농도 미만이면 보유량이 커도 이 수량 판정을 적용하지 않습니다. 상위 규정수량은 참고로 표시하며, 현재 영업신고·허가 판정에는 사용하지 않습니다.</p>
+            {% else %}
+                <p>수량 기준이 없거나 유효한 구간을 구성할 수 없어 수량 범위를 표시하지 않습니다. 0은 DB에 저장된 값이며, 미등록과 구분하여 표시합니다.</p>
+            {% endif %}
+        </div>
+    {% empty %}
+        <p>이 CAS No.에 등록된 규제 기준이 없습니다.</p>
+    {% endfor %}
+    <p class="small mb-0">기준은 현재 규제 DB의 값입니다. 기존 판정 결과는 등록 시 저장된 값이므로 이후 기준이 변경되었다면 차이가 있을 수 있습니다.</p>
+</section>

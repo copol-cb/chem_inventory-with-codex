@@ -63,7 +63,10 @@ def calculate_usage_ton_process(item_or_val, percent_val=0.0):
         u_max = item_or_val.usage_max        # 1회 최대 사용량(kg)
         u_water = item_or_val.water_input    # 물 투입량(kg)
         u_vol = item_or_val.usage_facility_vol # 수조 용량(m3)
-        pct = item_or_val.percentage         # 함량(%)
+        try:
+            pct = float(item_or_val.percentage)
+        except (TypeError, ValueError):
+            pct = 0.0  # 등록 시와 동일하게 영업비밀 등 비수치 함량 처리
         cas = item_or_val.cas_no             # CAS No.
     else:
         u_max = item_or_val.get('usage_max', 0.0)
@@ -294,6 +297,17 @@ def inventory_list(request):
     page = request.GET.get('page', '1')  # 페이지 번호 가져오기
     paginator = Paginator(grouped_items, 20) # 20개씩 자르기
     page_obj = paginator.get_page(page)      # 해당 페이지 데이터 가져오기
+
+    # 안전 판정 성분도 CAS에 등록된 전체 규제 기준을 확인할 수 있게 한다.
+    page_items = [item for group in page_obj for item in group['components']]
+    regulations_by_cas = {}
+    for regulation in ChemicalRegulation.objects.filter(
+        cas_no__in={item.cas_no for item in page_items}
+    ).exclude(regulation_type__contains='일반화학물질').order_by('regulation_type', 'pk'):
+        regulations_by_cas.setdefault(regulation.cas_no, []).append(regulation)
+    for item in page_items:
+        item.quantity_regulations = regulations_by_cas.get(item.cas_no, [])
+        item.component_total_ton = calculate_total_ton(item)
 
     context_vars['grouped_items'] = page_obj # 템플릿에는 잘린 데이터만 전달
     # ==========================================================
